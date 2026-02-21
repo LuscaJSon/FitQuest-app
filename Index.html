@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="pt-pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FitQuest: Daily Tower & Streaks</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#8257e5">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-0000000000000000" crossorigin="anonymous"></script>
+    
+    <style>
+        :root { 
+            --bg: #121214; --card: #1c1c1e; --text: #e1e1e6; 
+            --primary: #8257e5; --secondary: #04d361; --danger: #eb4444;
+            --border: #29292e; --accent: #fba94c;
+        }
+        
+        body { 
+            font-family: 'Inter', system-ui, sans-serif; 
+            background: var(--bg); color: var(--text); 
+            display: flex; flex-direction: column; align-items: center; 
+            padding: 10px; margin: 0;
+        }
+
+        /* Espaço para Anúncios */
+        .ad-space { width: 100%; max-width: 420px; background: #000; margin: 10px 0; display: flex; justify-content: center; overflow: hidden; border-radius: 8px; }
+
+        .top-hud { 
+            width: 100%; max-width: 420px; display: flex; align-items: center; 
+            padding: 16px; background: var(--card); border-radius: 16px; 
+            margin-bottom: 10px; border: 1px solid var(--border); box-sizing: border-box;
+        }
+        
+        #hud-avatar { width: 50px; height: 50px; border-radius: 12px; object-fit: cover; background: #29292e; }
+        
+        .hp-container { flex-grow: 1; margin: 0 16px; }
+        .hp-label { font-size: 0.7rem; font-weight: bold; margin-bottom: 4px; display: flex; justify-content: space-between; color: #9696ab; }
+        
+        .progress-bg { background: #29292e; height: 10px; border-radius: 5px; overflow: hidden; }
+        .progress-fill { height: 100%; transition: width 0.4s ease-out; }
+        .fill-hp { background: var(--secondary); }
+        .fill-enemy { background: var(--danger); }
+
+        .card { 
+            background: var(--card); padding: 24px; border-radius: 20px; 
+            width: 100%; max-width: 420px; border: 1px solid var(--border);
+            box-sizing: border-box; margin-bottom: 16px;
+        }
+
+        .stats-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin: 16px 0; }
+        .stat-box { background: #29292e; padding: 10px; border-radius: 12px; text-align: center; }
+        .stat-box span { display: block; font-size: 0.6rem; color: #9696ab; text-transform: uppercase; }
+        .stat-box b { font-size: 1rem; }
+
+        .streak-container { background: #29292e; padding: 12px; border-radius: 12px; margin-bottom: 15px; }
+        .streak-days { display: flex; justify-content: space-between; margin-top: 8px; }
+        .day-circle { width: 30px; height: 30px; border-radius: 50%; background: #121214; border: 2px solid #333; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: bold; color: #555; }
+        .day-circle.active { border-color: var(--secondary); color: var(--secondary); background: rgba(4, 211, 97, 0.1); }
+
+        .btn { 
+            width: 100%; padding: 16px; border: none; border-radius: 12px; 
+            font-weight: 700; cursor: pointer; transition: 0.2s; 
+            margin-bottom: 8px; font-size: 0.9rem;
+        }
+        .btn-p { background: var(--primary); color: #fff; }
+        .btn-s { background: #29292e; color: #fff; border: 1px solid var(--border); }
+        .btn:active { transform: scale(0.98); }
+
+        #file-input { display: none; }
+        .upload-label { display: block; padding: 12px; background: #29292e; border-radius: 8px; cursor: pointer; text-align: center; border: 1px dashed #444; }
+
+        .hidden { display: none !important; }
+        .log { font-size: 0.85rem; color: #9696ab; height: 150px; overflow-y: auto; background: #000; padding: 15px; border-radius: 12px; margin: 16px 0; border: 1px solid var(--border); }
+        .waiting-timer { color: var(--accent); font-weight: bold; font-size: 1.5rem; margin: 10px 0; }
+        
+        input { font-family: inherit; }
+    </style>
+</head>
+<body>
+
+    <div class="ad-space">
+        <ins class="adsbygoogle" style="display:inline-block;width:320px;height:50px" data-ad-client="ca-pub-0000000000000000" data-ad-slot="0000000000"></ins>
+        <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+    </div>
+
+    <div id="hud" class="top-hud hidden">
+        <img id="hud-avatar" src="" alt="Hero">
+        <div class="hp-container">
+            <div class="hp-label"><span>VITALIDADE</span><span id="hp-text">100/100</span></div>
+            <div class="progress-bg"><div id="hp-fill" class="progress-fill fill-hp"></div></div>
+        </div>
+        <button class="btn-s" style="width: 44px; padding: 0;" onclick="toggleConfig()">⚙️</button>
+    </div>
+
+    <div id="config-screen" class="card">
+        <h3>Perfil do Herói</h3>
+        <input type="text" id="cfg-name" placeholder="Nome" style="width: 100%; background:#121214; border:1px solid #333; color:white; padding:10px; border-radius:8px; box-sizing:border-box;">
+        <label for="file-input" class="upload-label" style="margin-top:10px">📁 Foto da Galeria</label>
+        <input type="file" id="file-input" accept="image/*">
+        <div style="display: flex; gap: 10px; margin-top: 15px;">
+            <div style="flex:1"><label>Treino(s)</label><input type="number" id="cfg-tEx" style="width:85%; background:#121214; border:1px solid #333; color:white; padding:8px; border-radius:8px;"></div>
+            <div style="flex:1"><label>Pausa(s)</label><input type="number" id="cfg-tRest" style="width:85%; background:#121214; border:1px solid #333; color:white; padding:8px; border-radius:8px;"></div>
+        </div>
+        <button class="btn btn-p" style="margin-top:20px" onclick="salvarConfig()">Começar Jornada</button>
+    </div>
+
+    <div id="main-screen" class="card hidden">
+        <h2 id="disp-name" style="margin:0">---</h2>
+        
+        <div class="streak-container">
+            <div style="font-size: 0.75rem; display: flex; justify-content: space-between;">
+                <span>STREAK DE TREINO</span>
+                <span id="streak-count">0 Dias</span>
+            </div>
+            <div class="streak-days" id="streak-days"></div>
+        </div>
+
+        <div class="stats-row">
+            <div class="stat-box"><span>FOR</span><b id="disp-str">0</b></div>
+            <div class="stat-box"><span>AGI</span><b id="disp-dex">0</b></div>
+            <div class="stat-box"><span>POT</span><b id="disp-pots">0</b></div>
+        </div>
+
+        <div id="action-area">
+            <div id="training-block">
+                <p style="font-size: 0.8rem; color: #9696ab;">Séries Diárias: <span id="disp-daily">0</span>/3</p>
+                <button id="btn-train" class="btn btn-p" onclick="abrirTimer()">INICIAR TREINO</button>
+            </div>
+            <div id="dungeon-area" class="hidden">
+                <button class="btn btn-p" style="background: var(--secondary);" onclick="iniciarAndar()">DESAFIAR ANDAR <span id="disp-floor">1</span></button>
+            </div>
+            <div id="wait-area" class="hidden" style="text-align: center;">
+                <p style="font-size: 0.8rem; color: #9696ab;">Recuperando energias para amanhã...</p>
+                <div id="cooldown-timer" class="waiting-timer">00:00:00</div>
+            </div>
+            <button class="btn btn-s" onclick="usarPote()">USAR POÇÃO EM CASA</button>
+        </div>
+    </div>
+
+    <div id="timer-screen" class="card hidden" style="text-align: center;">
+        <h2 id="timer-type" style="color: var(--accent);">PREPARAR</h2>
+        <div style="font-size: 5rem; font-weight: 800;" id="timer-clock">00:00</div>
+        <p>Série <span id="curr-series">1</span> de 3</p>
+    </div>
+
+    <div id="reward-screen" class="card hidden">
+        <h3>Meta Atingida!</h3>
+        <p>O esforço compensou. Melhore um atributo:</p>
+        <button class="btn btn-p" onclick="subirAtributo('str')">AUMENTAR FORÇA (+2)</button>
+        <button class="btn btn-s" onclick="subirAtributo('dex')">AUMENTAR AGILIDADE (+2)</button>
+    </div>
+
+    <div id="dungeon-screen" class="card hidden">
+        <h3 id="dung-title">Andar X</h3>
+        <div id="battle-area" class="hidden">
+            <div class="hp-label"><span id="enemy-name">Monstro</span><span id="enemy-hp-text">100/100</span></div>
+            <div class="progress-bg" style="margin-bottom:15px"><div id="enemy-hp-fill" class="progress-fill fill-enemy"></div></div>
+            <div class="hp-label"><span>VOCÊ</span><span id="battle-hp-text">100/100</span></div>
+            <div class="progress-bg"><div id="battle-hp-fill" class="progress-fill fill-hp"></div></div>
+        </div>
+        <div class="log" id="game-log"></div>
+        <div id="dungeon-btns"></div>
+        <button class="btn btn-s" style="margin-top:15px; color:var(--danger)" onclick="fugir()">ABANDONAR TORRE</button>
+    </div>
+
+    <div class="ad-space" style="height: 100px;">
+        <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-0000000000000000" data-ad-slot="0000000001" data-ad-format="auto" data-full-width-responsive="true"></ins>
+        <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+    </div>
+
+    <script>
+        // Registrar Service Worker para PWA
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').catch(err => console.log("SW Fail", err));
+        }
+
+        let timerInt;
+        let cooldownInt;
+        
+        let data = JSON.parse(localStorage.getItem('fitQuest_v10')) || {
+            setup: false, name: "Recruta", 
+            avatar: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
+            str: 5, dex: 5, hp: 100, maxHp: 100, pots: 1, floor: 1, dailyCount: 0,
+            tEx: 45, tRest: 15, nextTrainTime: 0, 
+            streak: 0, lastCheckIn: null 
+        };
+
+        document.getElementById('file-input').addEventListener('change', function(e) {
+            const reader = new FileReader();
+            reader.onload = function() { data.avatar = reader.result; render(); save(); };
+            reader.readAsDataURL(e.target.files[0]);
+        });
+
+        function save() { localStorage.setItem('fitQuest_v10', JSON.stringify(data)); }
+        function toggleConfig() { document.getElementById('config-screen').classList.toggle('hidden'); }
+
+        function salvarConfig() {
+            data.name = document.getElementById('cfg-name').value || "Herói";
+            data.tEx = parseInt(document.getElementById('cfg-tEx').value) || 45;
+            data.tRest = parseInt(document.getElementById('cfg-tRest').value) || 15;
+            data.setup = true; save(); render();
+            document.getElementById('config-screen').classList.add('hidden');
+        }
+
+        function checkTime() {
+            const now = Date.now();
+            if (data.nextTrainTime > 0 && now >= data.nextTrainTime) {
+                data.dailyCount = 0;
+                data.nextTrainTime = 0;
+                data.hp = data.maxHp;
+                const hoje = new Date().toDateString();
+                if (data.lastCheckIn !== hoje) {
+                    data.streak++;
+                    data.lastCheckIn = hoje;
+                }
+                save();
+                alert("Dia novo! HP restaurado e bónus de check-in aplicado.");
+            }
+        }
+
+        function render() {
+            checkTime();
+            if (!data.setup) return;
+            document.querySelectorAll('.card').forEach(c => c.classList.add('hidden'));
+            document.getElementById('hud').classList.remove('hidden');
+            document.getElementById('main-screen').classList.remove('hidden');
+            
+            document.getElementById('hud-avatar').src = data.avatar;
+            document.getElementById('hp-text').innerText = `${Math.max(0, data.hp)}/${data.maxHp}`;
+            document.getElementById('hp-fill').style.width = (data.hp / data.maxHp * 100) + "%";
+            document.getElementById('disp-name').innerText = data.name;
+            document.getElementById('disp-str').innerText = data.str;
+            document.getElementById('disp-dex').innerText = data.dex;
+            document.getElementById('disp-pots').innerText = data.pots;
+            document.getElementById('disp-floor').innerText = data.floor;
+            document.getElementById('disp-daily').innerText = data.dailyCount;
+            document.getElementById('streak-count').innerText = `${data.streak} Dias`;
+
+            const streakDiv = document.getElementById('streak-days');
+            streakDiv.innerHTML = '';
+            for(let i=1; i<=7; i++) {
+                let div = document.createElement('div');
+                div.className = `day-circle ${i <= (data.streak % 8) ? 'active' : ''}`;
+                div.innerText = i;
+                streakDiv.appendChild(div);
+            }
+
+            const trainingBlock = document.getElementById('training-block');
+            const dungeonArea = document.getElementById('dungeon-area');
+            const waitArea = document.getElementById('wait-area');
+
+            trainingBlock.classList.add('hidden');
+            dungeonArea.classList.add('hidden');
+            waitArea.classList.add('hidden');
+
+            if (data.nextTrainTime > Date.now()) {
+                waitArea.classList.remove('hidden');
+                startCooldownTimer();
+            } else if (data.dailyCount >= 3) {
+                dungeonArea.classList.remove('hidden');
+            } else {
+                trainingBlock.classList.remove('hidden');
+            }
+        }
+
+        function startCooldownTimer() {
+            clearInterval(cooldownInt);
+            cooldownInt = setInterval(() => {
+                const diff = data.nextTrainTime - Date.now();
+                if (diff <= 0) { clearInterval(cooldownInt); render(); return; }
+                const h = Math.floor(diff / 3600000);
+                const m = Math.floor((diff % 3600000) / 60000);
+                const s = Math.floor((diff % 60000) / 1000);
+                document.getElementById('cooldown-timer').innerText = `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+            }, 1000);
+        }
+
+        function abrirTimer() {
+            document.getElementById('main-screen').classList.add('hidden');
+            document.getElementById('timer-screen').classList.remove('hidden');
+            document.getElementById('curr-series').innerText = data.dailyCount + 1;
+            contagem(data.tEx, "EXERCÍCIO", () => {
+                contagem(data.tRest, "DESCANSO", () => {
+                    data.dailyCount++; save();
+                    if (data.dailyCount >= 3) {
+                        document.getElementById('timer-screen').classList.add('hidden');
+                        document.getElementById('reward-screen').classList.remove('hidden');
+                    } else render();
+                });
+            });
+        }
+
+        function contagem(seg, tipo, cb) {
+            document.getElementById('timer-type').innerText = tipo;
+            let time = seg; clearInterval(timerInt);
+            timerInt = setInterval(() => {
+                let m = Math.floor(time / 60); let s = time % 60;
+                document.getElementById('timer-clock').innerText = `${m}:${s < 10 ? '0'+s : s}`;
+                if (time <= 0) { clearInterval(timerInt); cb(); }
+                time--;
+            }, 1000);
+        }
+
+        function subirAtributo(atr) {
+            data[atr] += 2; save(); render();
+        }
+
+        // Lógica de Dungeon Simplificada
+        let eventos = 0; let inimigo = null;
+        function iniciarAndar() {
+            eventos = 0;
+            document.getElementById('main-screen').classList.add('hidden');
+            document.getElementById('dungeon-screen').classList.remove('hidden');
+            document.getElementById('dung-title').innerText = "Andar " + data.floor;
+            document.getElementById('game-log').innerHTML = "Entraste na torre fria...";
+            proximoEvento();
+        }
+
+        function proximoEvento() {
+            eventos++;
+            if (eventos > 3) {
+                if (data.floor % 6 === 0) gerarCombate(true); else finalizarAndar();
+                return;
+            }
+            let r = Math.random();
+            if (r < 0.5) gerarCombate(false);
+            else if (r < 0.75) gerarArmadilha();
+            else gerarBau();
+        }
+
+        function gerarCombate(isBoss) {
+            inimigo = {
+                nome: isBoss ? "CHEFE" : "INIMIGO",
+                hp: (isBoss ? 150 : 40) + (data.floor * 15),
+                atk: 5 + Math.floor(data.floor * 1.5)
+            };
+            inimigo.maxHp = inimigo.hp;
+            document.getElementById('battle-area').classList.remove('hidden');
+            atualizarInterfaceLuta();
+            document.getElementById('dungeon-btns').innerHTML = `
+                <button class="btn btn-p" onclick="atacar()">Atacar</button>
+                <button class="btn btn-s" onclick="usarPoteInBattle()">Usar Poção (${data.pots})</button>
+            `;
+        }
+
+        function atacar() {
+            const danoP = Math.floor(Math.random() * (data.str * 1.6 - data.str * 0.9 + 1)) + Math.floor(data.str * 0.9);
+            inimigo.hp -= danoP; log(`Deste ${danoP} de dano.`);
+            if (inimigo.hp > 0) {
+                let danoE = Math.floor(Math.random() * (inimigo.atk * 1.2 - inimigo.atk * 0.8 + 1)) + Math.floor(inimigo.atk * 0.8);
+                danoE = Math.max(2, danoE - Math.floor(data.dex / 4));
+                data.hp -= danoE; log(`${inimigo.nome} atacou: -${danoE} HP.`);
+            }
+            atualizarInterfaceLuta();
+            if (data.hp <= 0) morrer();
+            if (inimigo.hp <= 0) {
+                log("Vitória!");
+                document.getElementById('battle-area').classList.add('hidden');
+                document.getElementById('dungeon-btns').innerHTML = `<button class="btn btn-p" onclick="proximoEvento()">Avançar</button>`;
+            }
+        }
+
+        function gerarArmadilha() {
+            log("Uma armadilha disparou!");
+            document.getElementById('dungeon-btns').innerHTML = `<button class="btn btn-s" onclick="tentarEsquivar()">Esquivar (DEX)</button>`;
+        }
+
+        function tentarEsquivar() {
+            if (Math.random() * 20 + data.dex > 16) { log("Esquivaste!"); } 
+            else { 
+                const d = 10 + data.floor; data.hp -= d; log(`Foste atingido! -${d} HP.`);
+                if (data.hp <= 0) morrer();
+            }
+            document.getElementById('hp-fill').style.width = (data.hp / data.maxHp * 100) + "%";
+            document.getElementById('dungeon-btns').innerHTML = `<button class="btn btn-p" onclick="proximoEvento()">Continuar</button>`;
+            save();
+        }
+
+        function gerarBau() {
+            log("Viste um baú.");
+            document.getElementById('dungeon-btns').innerHTML = `
+                <button class="btn btn-s" onclick="data.pots++; save(); log('+1 Poção!'); proximoEvento()">Abrir</button>
+                <button class="btn btn-s" onclick="proximoEvento()">Ignorar</button>`;
+        }
+
+        function finalizarAndar() {
+            data.floor++;
+            data.nextTrainTime = Date.now() + (24 * 60 * 60 * 1000); 
+            save(); alert("Andar completo! Regressa em 24h."); render();
+        }
+
+        function morrer() {
+            data.floor = Math.max(1, data.floor - 1);
+            data.pots = Math.floor(data.pots / 2);
+            data.hp = 20; 
+            data.nextTrainTime = Date.now() + (24 * 60 * 60 * 1000);
+            save(); alert("Derrotado. Recupera e volta amanhã."); render();
+        }
+
+        function fugir() {
+            if(confirm("Sair agora encerrará o teu dia.")) {
+                data.nextTrainTime = Date.now() + (24 * 60 * 60 * 1000);
+                save(); render();
+            }
+        }
+
+        function atualizarInterfaceLuta() {
+            document.getElementById('enemy-hp-text').innerText = `${Math.max(0, inimigo.hp)}/${inimigo.maxHp}`;
+            document.getElementById('enemy-hp-fill').style.width = (inimigo.hp / inimigo.maxHp * 100) + "%";
+            document.getElementById('battle-hp-text').innerText = `${Math.max(0, data.hp)}/${data.maxHp}`;
+            document.getElementById('battle-hp-fill').style.width = (data.hp / data.maxHp * 100) + "%";
+            document.getElementById('hp-text').innerText = `${Math.max(0, data.hp)}/${data.maxHp}`;
+            document.getElementById('hp-fill').style.width = (data.hp / data.maxHp * 100) + "%";
+            save();
+        }
+
+        function usarPoteInBattle() {
+            if (data.pots > 0) {
+                data.hp = Math.min(data.maxHp, data.hp + 50);
+                data.pots--; save(); atualizarInterfaceLuta();
+            }
+        }
+
+        function usarPote() {
+            if (data.pots > 0) {
+                data.hp = Math.min(data.maxHp, data.hp + 50);
+                data.pots--; save(); render();
+            }
+        }
+
+        function log(m) {
+            const l = document.getElementById('game-log');
+            l.innerHTML += `<div>> ${m}</div>`;
+            l.scrollTop = l.scrollHeight;
+        }
+
+        render();
+    </script>
+</body>
+</html>
